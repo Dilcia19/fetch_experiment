@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+        <head>
+            <meta charset="UTF-8" />
+            <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+            <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+            <script src="https://cdn.jsdelivr.net/npm/vega-lite-api@5.0.0"></script>
+            <script src="https://cdn.jsdelivr.net/npm/vega-tooltip"></script>
+        </head>
+    <body>
+        <h1> Unemployment Drop-Down Menu</h1>
+        <br>
+        <br>
+        <label for="state">List of States:</label><br>
+        <select id="form">
+            <option value="">choose one</option><br>
+        </select>
+        <br><br>
+        <label for="county">List of Counties:</label><br>
+        <select id="form2">
+            <option value="">choose state first</option><br>
+        </select>
+
+        <br><br>
+        <h2 id="chart"></h2>
+        <div id="view"></div>
+        
+    </body>
+
+    <script>
+        const allData = [];
+        let myStates = [];
+        let myCounties = [];
+        let userData = [];
+        let userState;
+        let userCounty;
+
+        fetchData();
+        setTimeout(getStates, 2000, allData);
+        setTimeout(userSelectState, 2000, myStates);
+
+        // fetches json data
+        function fetchData() {
+            fetch('bls_monthly_unemp.json')
+                .then(res => res.json())
+                .then(data => allData.push(data));
+        }
+
+        function getStates(data) {
+            for (let i = 0; i < data[0].length; i++) {
+                let state = data[0][i]["state"];
+                let county = data[0][i]["county"];
+
+                if (myStates.includes(state)) {
+                    // do nothing
+                } else {
+                    myStates.push(state);
+                }
+            }
+        }
+
+        function userSelectState(myStates) {
+            myStates.forEach(function(item){
+                let stateObject = document.createElement("option");
+                stateObject.text = item;
+                stateObject.value = item;
+                form.appendChild(stateObject);
+            });
+
+            document.querySelector('#form').addEventListener('change', getValue);
+        }
+
+        function getValue() {
+            let selectedState = document.querySelector('#form');
+            userState = selectedState.value;
+            console.log(userState);
+
+            getCounties(allData, userState);
+            userSelectCounty(myCounties);
+        }
+
+        function getCounties(data, stateSelected) {
+                myCounties = [];
+                for (let i = 0; i < data[0].length; i++) {
+                let state = data[0][i]["state"];
+                let county = data[0][i]["county"];
+
+                    if (state == stateSelected) {
+                        if (myCounties.includes(county)) {
+                            // do nothing
+                        } else {
+                            myCounties.push(county);
+                        }
+                    } else {
+                        // do nothing
+                    }
+                }
+                console.log(myCounties);
+        }
+
+        function userSelectCounty(myCounties) {
+
+            removeItems()
+            let form2 = document.getElementById("form2");
+            let option = document.createElement("option");
+            option.text = "Select County";
+            form2.add(option);
+
+            myCounties.forEach(function(item){
+                let countyObject = document.createElement("option");
+                countyObject.text = item;
+                countyObject.value = item;
+                form2.appendChild(countyObject);
+            });
+
+            document.querySelector('#form2').addEventListener('change', getCountyValue);
+        }
+
+        function removeItems() {
+            let dropDown = document.getElementById("form2");
+
+            while (dropDown.length > 0) {
+                dropDown.remove(0);
+            }
+        }
+
+        function getCountyValue() {
+            let selectedCounty = document.querySelector('#form2');
+            userCounty = selectedCounty.value;
+            console.log(userCounty);
+
+            createUserData();
+            setTimeout(1000);
+            makeChart(userData);
+        }
+
+
+        function createUserData() {
+            userData = [];
+            for (let d = 0; d < allData[0].length; d++) {
+                console.log('hi there');
+
+                let state = allData[0][d]["state"];
+                let county = allData[0][d]["county"];
+
+                if (state == userState) {
+                    if (county == userCounty) {
+                        userData.push(allData[0][d]);
+                    }
+
+                } else {
+                    // do nothing
+                }
+            }
+            console.log(userData);
+        }
+
+        function makeChart(userData) {
+            
+            // setup API options
+            const options = {
+                config: {
+                },
+                init: (view) => {
+                view.tooltip(new vegaTooltip.Handler().call);
+                },
+                view: {
+                    loader: vega.loader({
+                        baseURL: "https://cdn.jsdelivr.net/npm/vega-datasets@2/",
+                    }),
+                    renderer: "canvas",
+                },
+            };
+
+            // register vega and vega-lite with the API
+            vl.register(vega, vegaLite, options);
+
+            // now you can use the API!
+            vl.markBar({ tooltip: true })
+            .title(`Unemployment Data for ${userCounty}, ${userState}`)
+            .data(userData)
+            .encode(
+                vl.x().fieldT("date"),
+                vl.y().fieldQ("unemployed_rate")
+            )
+            .render()
+            .then(viewElement => {
+                document.getElementById('view').prepend(viewElement);
+
+            });
+
+        }
+
+    </script>
+</html>
